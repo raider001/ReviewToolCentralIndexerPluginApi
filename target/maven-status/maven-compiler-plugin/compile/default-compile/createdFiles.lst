@@ -1,0 +1,7 @@
+com\kalynx\centralindexer\spi\ProviderPlugin.class
+com\kalynx\centralindexer\spi\WebhookHandler.class
+com\kalynx\centralindexer\model\EventType.class
+com\kalynx\centralindexer\spi\WebhookRouter.class
+com\kalynx\centralindexer\spi\EventSink.class
+com\kalynx\centralindexer\spi\ProviderConfig.class
+com\kalynx\centralindexer\model\ReviewEvent.class
