@@ -81,6 +81,80 @@ public interface ProviderPlugin {
     void reconcile(String repository, Instant since);
 
     /**
+     * Emits a {@link com.kalynx.centralindexer.model.EventType#BRANCH_UPDATED} event for
+     * every branch currently present in the repository.
+     *
+     * <p>Called once per repository during startup reconciliation so that the
+     * {@code branches} table is populated even when no webhooks have been received yet.
+     * The default implementation is a no-op — override to enable branch backfill.
+     *
+     * @param repository canonical repository identifier ({@code owner/repo}); never {@code null}
+     */
+    default void reconcileAllBranches(String repository) {
+    }
+
+    /**
+     * Emits review events for every file in the full tree of
+     * {@code refs/heads/kalynx-reviews} at the given commit.
+     *
+     * <p>Called once per repository on the very first startup (when no
+     * {@code kalynx_review_head} cursor has been stored yet) so that
+     * {@code reviews_index} is fully populated from the existing branch content.
+     * The default implementation is a no-op — override to enable full-tree indexing.
+     *
+     * @param repository canonical repository identifier ({@code owner/repo}); never {@code null}
+     * @param headCommit the HEAD commit SHA of {@code refs/heads/kalynx-reviews}
+     * @return {@code true} if reconciliation completed successfully and the cursor may be
+     *         advanced; {@code false} if it failed (e.g., provider API unreachable) and the
+     *         cursor must not be advanced
+     */
+    default boolean reconcileFullReviewTree(String repository, String headCommit) {
+        return false;
+    }
+
+    /**
+     * Returns the current HEAD commit SHA of the {@code refs/heads/kalynx-reviews} orphan
+     * branch in the given repository, or {@code null} if the branch does not exist or the
+     * plugin does not support this operation.
+     *
+     * <p>Called by the indexer at startup for each tracked repository to determine whether
+     * the stored {@code kalynx_review_head} cursor is behind the live state. If this method
+     * returns {@code null}, no commit-based reconciliation is attempted for that repository.
+     *
+     * <p>The default implementation returns {@code null} (opt-out). Override to enable
+     * commit-based startup reconciliation.
+     *
+     * @param repository canonical repository identifier ({@code owner/repo}); never {@code null}
+     * @return the 40-character commit SHA, or {@code null}
+     */
+    default String fetchKalynxReviewHead(String repository) {
+        return null;
+    }
+
+    /**
+     * Replays all review events from commits on {@code refs/heads/kalynx-reviews} in the
+     * range {@code (fromCommit, toCommit]} — i.e., commits reachable from {@code toCommit}
+     * that are not reachable from {@code fromCommit}.
+     *
+     * <p>For each file changed in that commit range whose path matches
+     * {@code reviews/{reviewId}/{streamName}}, the plugin constructs a {@link com.kalynx.centralindexer.model.ReviewEvent}
+     * and submits it via the {@link EventSink} provided to {@link #start}. Submissions are
+     * idempotent from the indexer's perspective.
+     *
+     * <p>The default implementation is a no-op. Override alongside
+     * {@link #fetchKalynxReviewHead} to enable commit-based reconciliation.
+     *
+     * @param repository canonical repository identifier ({@code owner/repo}); never {@code null}
+     * @param fromCommit the exclusive lower-bound commit SHA (the last known-good state)
+     * @param toCommit   the inclusive upper-bound commit SHA (the current live HEAD)
+     * @return {@code true} if reconciliation completed successfully and the cursor may be
+     *         advanced; {@code false} if it failed and the cursor must not be advanced
+     */
+    default boolean reconcileFromCommit(String repository, String fromCommit, String toCommit) {
+        return false;
+    }
+
+    /**
      * Stops the plugin and releases all resources.
      *
      * <p>After this method returns the plugin must not call {@link EventSink#submit} or
