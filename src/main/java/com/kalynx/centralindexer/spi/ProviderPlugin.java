@@ -1,6 +1,7 @@
 package com.kalynx.centralindexer.spi;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
  * SPI contract that all provider plugins must implement.
@@ -152,6 +153,23 @@ public interface ProviderPlugin {
      */
     default boolean reconcileFromCommit(String repository, String fromCommit, String toCommit) {
         return false;
+    }
+
+    /**
+     * Returns the list of file paths changed in the commit range {@code (fromCommit, toCommit]}.
+     *
+     * <p>Used by the indexer to detect comment sub-stream changes on
+     * {@code refs/heads/kalynx-reviews} pushes without re-running full review reconciliation.
+     * The default implementation returns an empty list — override alongside
+     * {@link #reconcileFromCommit} to enable comment change detection.
+     *
+     * @param repository canonical repository identifier ({@code owner/repo}); never {@code null}
+     * @param fromCommit the exclusive lower-bound commit SHA
+     * @param toCommit   the inclusive upper-bound commit SHA
+     * @return list of changed file paths; never {@code null}
+     */
+    default List<String> listChangedPaths(String repository, String fromCommit, String toCommit) {
+        return List.of();
     }
 
     /**
